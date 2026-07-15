@@ -14,12 +14,15 @@ see [Performance](#performance) for what to expect on less memory.
 
 ## Demo
 
-<video src="https://github.com/mmzz164/lip-sync-mac/raw/main/assets/demo.mp4" controls width="320"></video>
+[![Input photo next to a frame from the generated clip](assets/demo_poster.png)](assets/demo.mp4)
 
-If the player above doesn't load, [download the clip](assets/demo.mp4) — 8.4s,
-320x576, 359 KB. It says *"This clip was generated entirely on a MacBook. Both
-the voice and the lip motion are synthetic."*, which is literally true of it:
-nothing in the video is a recording of anyone saying those words.
+**[▶ Play the clip](assets/demo.mp4)** (8.4s, 320x576, 359 KB — GitHub shows a
+player when you open it; the raw URL is served as `application/octet-stream`,
+so an inline `<video>` tag will not play it).
+
+It says *"This clip was generated entirely on a MacBook. Both the voice and the
+lip motion are synthetic."*, which is literally true of it: nothing in the video
+is a recording of anyone saying those words.
 
 Generated with the defaults on an M4 Pro in ~5 minutes (298s), from the two
 files in `assets/`. Reproduce it exactly — `--seed` covers the TTS take as well
