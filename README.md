@@ -14,13 +14,11 @@ see [Performance](#performance) for what to expect on less memory.
 
 ## Demo
 
-https://github.com/user-attachments/assets/f525624f-b61e-4423-9348-3978e7f2cf1b
+https://github.com/user-attachments/assets/d87d5474-d56e-4053-b317-9a3f166811ce
 
 Turn the sound on — lip-sync is the whole point, and no still or GIF can show
-whether the mouth actually matches the speech. Also committed as
-[`assets/demo.mp4`](assets/demo.mp4) (8.4s, 320x576, 283 KB) — same video
-stream, with the audio re-encoded down from 48kHz stereo to mono to keep the
-repo small.
+whether the mouth actually matches the speech. Same file as
+[`assets/demo.mp4`](assets/demo.mp4) (8.4s, 320x576, 283 KB).
 
 It says *"This clip was generated entirely on a MacBook. Both the voice and the
 lip motion are synthetic."*, which is literally true of it: nothing in the video
@@ -29,8 +27,8 @@ is a recording of anyone saying those words.
 Generated with the defaults on an M4 Pro in ~5 minutes (298s), from the files in
 `assets/`. Reproduce it — `--seed` covers the TTS take as well as the video, so
 the clip comes back frame for frame (verified: the video stream hashes
-identically). Your file will be slightly larger than the committed one, which
-only differs by the audio re-encode mentioned above:
+identically). Your file will be a little larger, since the committed copy has
+its audio re-encoded from 48kHz stereo down to mono to keep the repo small:
 
 ```bash
 cp assets/demo_portrait.png assets/demo_ref.wav assets/demo_ref.txt "$LTX_MAC_ROOT/input/"
