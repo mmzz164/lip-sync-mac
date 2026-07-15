@@ -18,7 +18,7 @@ https://github.com/user-attachments/assets/f525624f-b61e-4423-9348-3978e7f2cf1b
 
 Turn the sound on — lip-sync is the whole point, and no still or GIF can show
 whether the mouth actually matches the speech. Same file as
-[`assets/demo.mp4`](assets/demo.mp4) (8.4s, 320x576, 359 KB).
+[`assets/demo.mp4`](assets/demo.mp4) (8.4s, 320x576, 284 KB).
 
 It says *"This clip was generated entirely on a MacBook. Both the voice and the
 lip motion are synthetic."*, which is literally true of it: nothing in the video
