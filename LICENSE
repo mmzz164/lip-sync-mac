@@ -2,6 +2,20 @@ MIT License
 
 Copyright (c) 2026 mmzz164
 
+The MIT terms below cover this repository's own code and documentation. The
+demo files under assets/ are third-party works, included under their own terms
+and credited in README.md ("Demo asset credits"):
+
+  demo_portrait.png  "Portrait Pilot" by Elliott Chau, via StockSnap, CC0 1.0
+  demo_ref.wav       clip LJ001-0009 of the LJ Speech Dataset, public domain
+  demo_ref.txt       the transcript of that clip, from the same dataset
+  demo.mp4           generated from the two above by this pipeline
+
+Note that a CC0 or public-domain grant covers copyright only. It says nothing
+about the likeness or voice of the people in those recordings, so it is not on
+its own permission to make a new person appear to speak. See the note in
+README.md before substituting your own material.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights

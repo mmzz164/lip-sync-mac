@@ -8,7 +8,10 @@ often with a still, high-detail reference image than with a casual photo).
 This script re-rolls the seed and keeps the first clip that (a) still moves
 the mouth and (b) stays bright through the -30dB audible speech end.
 
-Reuses lipsync_utils (U) / generate_lipsync_fast (G) so voice + look stay identical.
+Reuses lipsync_utils (U) / generate_lipsync_fast (G) so voice + look stay
+identical. Only the video seed is re-rolled: --tts-seed pins the speech, because
+Qwen3-TTS samples a different take (and a different length) every run otherwise,
+and a replacement clip that changed length would no longer fit its slot.
 """
 import argparse
 import os
@@ -79,6 +82,7 @@ def main():
     ap.add_argument("--height", type=int, default=576)
     ap.add_argument("--tail-pause", type=float, default=0.5)
     ap.add_argument("--seeds", default="123,777,2024,31337,55")
+    ap.add_argument("--tts-seed", type=int, default=42, help="Seeds the TTS take. Fixed by default: an unseeded take changes length between runs, so a regenerated clip would no longer fit the slot it replaces. Pass the --seed you used originally to get that exact take back.")
     ap.add_argument("--min-mouth-range", type=float, default=0.02)
     ap.add_argument("--min-bright", type=float, default=0.85)
     args = ap.parse_args()
@@ -101,7 +105,8 @@ def main():
     # Same TTS entry point as the single-shot CLI, so a clip regenerated here
     # keeps the voice it was originally generated with.
     dur = G.tts_voice_clone(args.text, ref_audio_path, ref_text, args.language, tts_path,
-                            tts_model_path=args.tts_model, speaker=args.speaker)
+                            tts_model_path=args.tts_model, speaker=args.speaker,
+                            seed=args.tts_seed)
     nf = U.frames_for_audio(dur + args.tail_pause)
     vdur = U.video_dur_for_frames(nf)
     U.pad_audio_to(tts_path, vdur)
