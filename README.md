@@ -135,6 +135,11 @@ cd "$LTX_MAC_ROOT/scripts"
 
 The output lands at `$LTX_MAC_ROOT/output/demo_00001_.mp4`.
 
+`--seed` covers both the TTS take and the video noise, so the same seed
+reproduces the whole clip. Omit it and Qwen3-TTS samples a different take
+(different wording emphasis, different length) every run, which is usually not
+what you want when comparing two settings.
+
 If you have a fine-tuned custom-voice speaker instead of a reference clip,
 use `--tts-model <path> --speaker <name>` in place of `--ref-audio`/`--ref-text`.
 

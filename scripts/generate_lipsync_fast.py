@@ -95,10 +95,17 @@ def load_voice_prompt(path_or_name):
 def tts_voice_clone(text, ref_audio_path, ref_text, language, out_wav,
                     voice_prompt=None, tts_model_path=None,
                     speaker=None, instruct=None, use_voice_design=False,
-                    pitch_shift_semitones=0.0):
-    """Run TTS, switching between clone / custom_voice / voice_design based on the given args."""
+                    pitch_shift_semitones=0.0, seed=None):
+    """Run TTS, switching between clone / custom_voice / voice_design based on the given args.
+
+    Qwen3-TTS samples autoregressively, so without a seed the same text yields a
+    different take (and a different length) every run. Seeding it here is what
+    makes --seed reproduce a whole clip rather than just the video noise.
+    """
     import torch, soundfile as sf
     from qwen_tts import Qwen3TTSModel
+    if seed is not None:
+        torch.manual_seed(seed)
     t0 = time.time()
     model_path = tts_model_path or QWEN3_TTS_LOCAL
     print(f"[TTS] loading {model_path}")
@@ -225,7 +232,7 @@ def main():
     ap.add_argument("--duration", type=float, default=5.0, help="Video duration in seconds (ignored if --auto-duration)")
     ap.add_argument("--auto-duration", action="store_true", help="Match video duration to the generated TTS audio length (plus a 0.2s tail), snapped up to LTX's frame grid")
     ap.add_argument("--prompt", default="A person speaking clearly at the camera, natural lip sync, medium shot")
-    ap.add_argument("--seed", type=int, default=None)
+    ap.add_argument("--seed", type=int, default=None, help="Seeds both the TTS take and the video noise. Omitted = random, and the clip is not reproducible.")
     ap.add_argument("--prefix", default=None)
     ap.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     ap.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
@@ -275,7 +282,8 @@ def main():
                               speaker=args.speaker,
                               instruct=args.instruct,
                               use_voice_design=args.voice_design,
-                              pitch_shift_semitones=args.pitch_shift)
+                              pitch_shift_semitones=args.pitch_shift,
+                              seed=seed)
     # Snap the video length straight onto LTX's 8n+1 frame grid (see
     # lipsync_utils.frames_for_audio). Rounding to some intermediate grid and
     # letting LTX round up again on top leaves the video longer than the
