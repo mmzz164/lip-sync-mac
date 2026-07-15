@@ -11,19 +11,23 @@ Usage:
     --text "I am a software engineer, and I love writing code every day." \
     --image character.png \
     --ref-audio voice_sample.wav \
-    --ref-text "Okay. Yeah. I resent you. I love you. I respect you. But you know what? You blew it!" \
+    --ref-text "<exact transcript of voice_sample.wav>" \
     --duration 5 \
     --prompt "A young person in a bright office, speaking clearly at the camera, natural lip sync"
 """
-import argparse, glob, json, os, random, shutil, subprocess, sys, time
-import urllib.request
+import argparse, json, os, random, sys, time
 
-LTX_ROOT = os.path.expanduser(os.environ.get("LTX_MAC_ROOT", "~/work/ltx_mac"))
-COMFYUI_URL = os.environ.get("COMFY_URL", "http://127.0.0.1:8188")
-OUTPUT_DIR = os.environ.get("LTX_OUTPUT_DIR", os.path.join(LTX_ROOT, "output"))
-INPUT_DIR = os.environ.get("LTX_INPUT_DIR", os.path.join(LTX_ROOT, "input"))
-FPS = 24
-DEFAULT_WIDTH, DEFAULT_HEIGHT = 1280, 720
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import lipsync_utils as U
+
+LTX_ROOT = U.LTX_ROOT
+COMFYUI_URL = U.COMFYUI_URL
+OUTPUT_DIR = U.OUTPUT_DIR
+INPUT_DIR = U.INPUT_DIR
+FPS = U.FPS
+# 320x576 at the 2-step default is the benchmarked config (see README
+# "Performance"); raise for quality, keeping both dimensions multiples of 32.
+DEFAULT_WIDTH, DEFAULT_HEIGHT = 320, 576
 NEG_PROMPT = (
     "blurry, low quality, still frame, ugly, distorted face, "
     "text, letters, words, japanese characters, chinese characters, korean characters, english text, "
@@ -180,44 +184,38 @@ def build_workflow(image_name, audio_name, prompt_text, duration, seed, prefix, 
     return wf
 
 
-def submit_and_wait(wf, prefix, timeout=1800):
-    data = json.dumps({"prompt": wf}).encode()
-    req = urllib.request.Request(f"{COMFYUI_URL}/prompt", data=data, headers={"Content-Type": "application/json"})
+def submit_and_wait(wf, timeout=1800):
+    """Queue the workflow and return the mp4 this specific job produced.
+
+    Waits on the prompt_id rather than globbing output/ for the newest matching
+    file: a rerun with an already-used --prefix would match last run's clip on
+    the first poll and report it as a fresh success.
+    """
+    start = time.time()
     try:
-        resp = urllib.request.urlopen(req)
-        pid = json.loads(resp.read()).get("prompt_id")
+        pid = U.submit(wf)
         print(f"[LTX] queued prompt_id={pid}")
     except Exception as e:
         print(f"[LTX] submit error: {e}")
-        if hasattr(e, 'read'):
+        if hasattr(e, "read"):
             print(e.read().decode()[:2000])
         return None
-
-    pattern = os.path.join(OUTPUT_DIR, f"{prefix}_*.mp4")
-    start = time.time()
-    dots = 0
-    while time.time() - start < timeout:
-        matches = glob.glob(pattern)
-        if matches:
-            time.sleep(2)
-            latest = sorted(matches, key=os.path.getmtime)[-1]
-            print(f"\n[LTX] output: {latest}  elapsed={time.time()-start:.0f}s")
-            return latest
-        dots += 1
-        sys.stdout.write("." if dots % 12 else f" {int(time.time()-start)}s\n")
-        sys.stdout.flush()
-        time.sleep(5)
-    print("\n[LTX] TIMEOUT")
-    return None
+    try:
+        out = U.wait_for(pid, timeout=timeout, progress=True)
+    except (RuntimeError, TimeoutError) as e:
+        print(f"\n[LTX] {e}")
+        return None
+    print(f"\n[LTX] output: {out}  elapsed={time.time()-start:.0f}s")
+    return out
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--text", required=True, help="Text to speak")
-    ap.add_argument("--image", default="mv_character.png", help="Character image in input/")
-    ap.add_argument("--ref-audio", default="qwen_clone_sample.wav", help="Reference audio in input/ (ignored if --voice-prompt given)")
-    ap.add_argument("--ref-text", default="Okay. Yeah. I resent you. I love you. I respect you. But you know what? You blew it!")
-    ap.add_argument("--voice-prompt", default=None, help="Saved voice embedding name/path (.safetensors) in models/Qwen3-TTS/prompts/. If given, overrides --ref-audio/--ref-text.")
+    ap.add_argument("--image", required=True, help="Character image in input/ (or an absolute path)")
+    ap.add_argument("--ref-audio", default=None, help="Reference audio in input/ for voice cloning (ignored if --voice-prompt/--speaker given)")
+    ap.add_argument("--ref-text", default=None, help="Exact transcript of --ref-audio. Required with --ref-audio: a transcript that does not match the audio quietly degrades the cloned voice.")
+    ap.add_argument("--voice-prompt", default=None, help="Saved voice embedding name/path (.safetensors) in models/tts/prompts/. If given, overrides --ref-audio/--ref-text.")
     ap.add_argument("--tts-model", default=None, help="Path to a fine-tuned Qwen3-TTS model directory. Defaults to the Base model.")
     ap.add_argument("--speaker", default=None, help="Speaker name for custom_voice mode (FT speaker or preset). When given, uses generate_custom_voice.")
     ap.add_argument("--instruct", default=None, help="Natural-language voice/style instruction for TTS")
@@ -225,14 +223,14 @@ def main():
     ap.add_argument("--pitch-shift", type=float, default=0.0, help="Post-process pitch shift in semitones (+3 = 3 semitones higher, -2 = lower)")
     ap.add_argument("--language", default="English", choices=["Auto", "English", "Japanese", "Chinese"])
     ap.add_argument("--duration", type=float, default=5.0, help="Video duration in seconds (ignored if --auto-duration)")
-    ap.add_argument("--auto-duration", action="store_true", help="Match video duration to generated TTS audio length (minus 0.3s margin)")
-    ap.add_argument("--prompt", default="A young Japanese woman with short brown hair in gray hoodie speaking clearly at the camera, natural lip sync, warm office lighting, medium shot")
+    ap.add_argument("--auto-duration", action="store_true", help="Match video duration to the generated TTS audio length (plus a 0.2s tail), snapped up to LTX's frame grid")
+    ap.add_argument("--prompt", default="A person speaking clearly at the camera, natural lip sync, medium shot")
     ap.add_argument("--seed", type=int, default=None)
     ap.add_argument("--prefix", default=None)
     ap.add_argument("--width", type=int, default=DEFAULT_WIDTH)
     ap.add_argument("--height", type=int, default=DEFAULT_HEIGHT)
-    ap.add_argument("--guide-strength", type=float, default=1.0, help="LTXVAddGuide.strength. 1.0=tight to ref image (stiff), 0.7-0.85=looser (more movement)")
-    ap.add_argument("--img-compression", type=int, default=18, help="LTXVPreprocess.img_compression. higher=more pixel abstraction=more freedom")
+    ap.add_argument("--guide-strength", type=float, default=0.94, help="LTXVAddGuide.strength. 1.0=tight to ref image (stiff), 0.7-0.85=looser (more movement, more identity drift)")
+    ap.add_argument("--img-compression", type=int, default=24, help="LTXVPreprocess.img_compression. higher=more pixel abstraction=more freedom (and more identity drift)")
     args = ap.parse_args()
 
     seed = args.seed if args.seed is not None else random.randint(0, 2**31 - 1)
@@ -243,14 +241,17 @@ def main():
     voice_prompt_items = None
     ref_audio_path = None
     if args.voice_design:
-        pass  # no wav needed; instruct required
         if not args.instruct:
             sys.exit("--voice-design requires --instruct")
     elif args.speaker:
-        pass  # custom_voice mode
+        pass  # custom_voice mode: nothing else to resolve
     elif args.voice_prompt:
         voice_prompt_items = load_voice_prompt(args.voice_prompt)
     else:
+        if not args.ref_audio:
+            sys.exit("need one of --ref-audio (+ --ref-text), --voice-prompt, --speaker, or --voice-design")
+        if not args.ref_text:
+            sys.exit("--ref-audio requires --ref-text (the exact transcript of that audio)")
         ref_audio_path = args.ref_audio if os.path.isabs(args.ref_audio) else os.path.join(INPUT_DIR, args.ref_audio)
         if not os.path.exists(ref_audio_path):
             sys.exit(f"missing: {ref_audio_path}")
@@ -261,9 +262,9 @@ def main():
     print("=" * 60)
     print(f" text      : {args.text!r}")
     print(f" image     : {args.image}")
-    print(f" ref_audio : {args.ref_audio}")
+    print(f" voice     : {args.speaker or args.voice_prompt or args.ref_audio or 'voice-design'}")
     print(f" language  : {args.language}")
-    print(f" duration  : {args.duration}s")
+    print(f" duration  : {'auto' if args.auto_duration else str(args.duration) + 's'}")
     print(f" seed      : {seed}")
     print(f" prefix    : {prefix}")
     print("=" * 60)
@@ -275,15 +276,21 @@ def main():
                               instruct=args.instruct,
                               use_voice_design=args.voice_design,
                               pitch_shift_semitones=args.pitch_shift)
-    video_dur = args.duration
+    # Snap the video length straight onto LTX's 8n+1 frame grid (see
+    # lipsync_utils.frames_for_audio). Rounding to some intermediate grid and
+    # letting LTX round up again on top leaves the video longer than the
+    # speech, and the model stretches the mouth motion to fill it -> the lips
+    # drift further out of sync the longer the clip runs.
+    requested = (tts_dur + 0.2) if args.auto_duration else args.duration
+    video_dur = U.video_dur_for_frames(U.frames_for_audio(requested))
     if args.auto_duration:
-        import math
-        # ceil to 0.5s grid so video covers ENTIRE TTS audio (+ tiny trailing silence)
-        video_dur = max(1.0, min(tts_dur + 0.2, 30.0))
-        video_dur = math.ceil(video_dur * 2) / 2.0  # 0.5s grid
         print(f"[LTX] auto duration: tts={tts_dur:.2f}s -> video={video_dur:.2f}s")
-    elif tts_dur < args.duration - 0.2:
-        print(f"[warn] tts duration ({tts_dur:.2f}s) < requested video duration ({args.duration}s); trimming will zero-pad or crop")
+    elif abs(video_dur - args.duration) > 0.01:
+        print(f"[LTX] duration {args.duration}s -> {video_dur:.2f}s (LTX frame grid)")
+    # TrimAudioDuration only ever trims, so a clip shorter than the video would
+    # leave the audio latent shorter than the video latent and the two would
+    # not line up in time.
+    U.pad_audio_to(tts_wav_path, video_dur)
 
     wf = build_workflow(
         image_name=args.image,
@@ -304,7 +311,7 @@ def main():
         json.dump(wf, f, indent=2)
     print(f"[LTX] workflow saved: {wf_path}")
 
-    out_video = submit_and_wait(wf, prefix)
+    out_video = submit_and_wait(wf)
     if out_video:
         print(f"\n=== DONE ===")
         print(f"video: {out_video}")

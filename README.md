@@ -149,11 +149,16 @@ result by mouth motion + end-of-clip brightness:
 "$PY" regen_seg.py \
   --text "Hello, this is a test of the lip-sync pipeline." \
   --prefix demo \
-  --tts-model <path-to-tts-model> --speaker <name> \
   --image person.png \
+  --ref-audio voice_sample.wav \
+  --ref-text "<exact transcript of voice_sample.wav>" \
   --prompt "A person speaking clearly at the camera, natural lip sync, medium shot" \
   --seeds 123,777,2024
 ```
+
+It takes the same voice arguments as `generate_lipsync_fast.py`, so swap in
+`--tts-model <path> --speaker <name>` if you have a fine-tuned speaker. The
+winning clip is copied to `output/<prefix>_00001_.mp4`.
 
 ### Checking quality
 
@@ -198,7 +203,9 @@ you touch these two flags** - it's usually the safer fix, and it's what
 
 `--width`/`--height` and the sampler step count (`LTX_SIGMAS` env var, see
 comments in `generate_lipsync_fast.py`) trade quality for speed - see
-[Performance](#performance).
+[Performance](#performance). The defaults (320x576, 2 steps) are the
+benchmarked fast config; raise `--width`/`--height` for quality, keeping both
+a multiple of 32.
 
 `--force-fp16` on ComfyUI's launch (in `run_comfyui_mac.sh`) is **not** a
 free speedup on Apple Silicon: in testing it made generation ~37% *slower*
@@ -218,11 +225,18 @@ bash scripts/bench/judge_bench.sh        # prints mouth_range/brightness and a c
 | Sampler steps | Resolution | Time (warm) | vs. 4-step/448x800 baseline |
 |---|---|---|---|
 | 4 | 448x800 | ~355s | 1x |
-| 3 | 448x800 | ~352s | ~1.15x |
+| 3 | 448x800 | ~352s | ~1.01x (see note) |
 | 2 | 448x800 | ~227s | ~1.56x |
-| 2 | 384x672 | ~157s | ~1.45x |
-| 2 | 320x576 | ~137s | ~1.66x |
+| 4 | 384x672 | ~262s | ~1.36x |
+| 2 | 384x672 | ~157s | ~2.26x |
+| 2 | 320x576 | ~137s | ~2.59x (**default**) |
 | 4 | 448x800, `--force-fp16` | ~488s | 0.73x (slower!) |
+
+> The 355s baseline was measured in an earlier session than the other rows;
+> compare warm runs to warm runs. The 3-step row is an outlier — stepping 4->2
+> saves ~128s, so 4->3 saving only ~3s does not fit, and interpolation would
+> predict ~290s. Treat 3-step as un-measured rather than as "no faster than
+> 4-step", and re-run `speed_bench.sh bench3s448` if you care about it.
 
 Lower step counts trade off lip-sync robustness for speed - fewer steps make
 "dead" (non-moving) clips and identity drift somewhat more likely, so always

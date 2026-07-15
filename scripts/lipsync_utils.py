@@ -8,8 +8,11 @@ a previous run), keeping audio/video length in sync on the LTX frame grid,
 and a lightweight OpenCV mouth-openness metric used to detect "dead" clips
 where the model ignored the audio and barely animated the mouth.
 
-Used by regen_seg.py; feel free to import these directly if you're writing
-your own batch driver.
+Used by generate_lipsync_fast.py and regen_seg.py; feel free to import these
+directly if you're writing your own batch driver.
+
+This module deliberately imports nothing from the other scripts: they import
+it, not the other way round.
 """
 import glob
 import json
@@ -18,12 +21,11 @@ import os
 import time
 import urllib.request
 
-import generate_lipsync_fast as G  # build_workflow + shared constants
-
-COMFYUI_URL = G.COMFYUI_URL
-OUTPUT_DIR = G.OUTPUT_DIR
-INPUT_DIR = G.INPUT_DIR
-FPS = G.FPS
+LTX_ROOT = os.path.expanduser(os.environ.get("LTX_MAC_ROOT", "~/work/ltx_mac"))
+COMFYUI_URL = os.environ.get("COMFY_URL", "http://127.0.0.1:8188")
+OUTPUT_DIR = os.environ.get("LTX_OUTPUT_DIR", os.path.join(LTX_ROOT, "output"))
+INPUT_DIR = os.environ.get("LTX_INPUT_DIR", os.path.join(LTX_ROOT, "input"))
+FPS = 24
 
 
 # ---------------------------------------------------------------------------
@@ -37,10 +39,20 @@ def submit(wf):
     return json.loads(resp.read()).get("prompt_id")
 
 
-def wait_for(pid, timeout=1800):
-    """Block until the prompt finishes; return the produced mp4 path (from job outputs)."""
+def wait_for(pid, timeout=1800, progress=False):
+    """Block until the prompt finishes; return the produced mp4 path (from job outputs).
+
+    Set progress=True to print a dot per poll, for interactive single-clip runs
+    where the alternative is minutes of silence.
+    """
+    import sys
     start = time.time()
+    ticks = 0
     while time.time() - start < timeout:
+        if progress:
+            ticks += 1
+            sys.stdout.write("." if ticks % 12 else f" {int(time.time()-start)}s\n")
+            sys.stdout.flush()
         try:
             h = json.loads(urllib.request.urlopen(f"{COMFYUI_URL}/history/{pid}").read())
         except Exception:

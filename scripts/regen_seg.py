@@ -66,8 +66,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--text", required=True)
     ap.add_argument("--prefix", required=True, help="output filename prefix, e.g. clip01")
-    ap.add_argument("--tts-model", required=True)
-    ap.add_argument("--speaker", required=True)
+    ap.add_argument("--tts-model", default=None, help="Path to a fine-tuned Qwen3-TTS model directory. Defaults to the Base model.")
+    ap.add_argument("--speaker", default=None, help="Speaker name for custom_voice mode. Omit to clone from --ref-audio instead.")
+    ap.add_argument("--ref-audio", default=None, help="Reference audio in input/ for voice cloning (used when --speaker is omitted)")
+    ap.add_argument("--ref-text", default=None, help="Exact transcript of --ref-audio")
     ap.add_argument("--image", required=True)
     ap.add_argument("--prompt", required=True)
     ap.add_argument("--language", default="English")
@@ -81,18 +83,20 @@ def main():
     ap.add_argument("--min-bright", type=float, default=0.85)
     args = ap.parse_args()
 
-    import torch
-    import soundfile as sf
-    from qwen_tts import Qwen3TTSModel
-    print(f"[TTS] loading FT model {args.tts_model}", flush=True)
-    model = Qwen3TTSModel.from_pretrained(
-        args.tts_model, device_map=os.environ.get("TTS_DEVICE", "mps"), dtype=torch.bfloat16, attn_implementation="sdpa")
+    ref_audio_path = None
+    if not args.speaker:
+        if not args.ref_audio or not args.ref_text:
+            sys.exit("need either --speaker (custom_voice) or --ref-audio + --ref-text (voice clone)")
+        ref_audio_path = args.ref_audio if os.path.isabs(args.ref_audio) else os.path.join(INPUT_DIR, args.ref_audio)
+        if not os.path.exists(ref_audio_path):
+            sys.exit(f"missing: {ref_audio_path}")
 
     tts_name = f"{args.prefix}_tts.wav"
     tts_path = os.path.join(INPUT_DIR, tts_name)
-    wavs, sr = model.generate_custom_voice(text=args.text, language=args.language, speaker=args.speaker)
-    sf.write(tts_path, wavs[0], sr)
-    dur = len(wavs[0]) / sr
+    # Same TTS entry point as the single-shot CLI, so a clip regenerated here
+    # keeps the voice it was originally generated with.
+    dur = G.tts_voice_clone(args.text, ref_audio_path, args.ref_text, args.language, tts_path,
+                            tts_model_path=args.tts_model, speaker=args.speaker)
     nf = U.frames_for_audio(dur + args.tail_pause)
     vdur = U.video_dur_for_frames(nf)
     U.pad_audio_to(tts_path, vdur)
