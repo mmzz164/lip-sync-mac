@@ -90,8 +90,10 @@ trustworthy to work from.
 - macOS with Homebrew.
 - Python 3.12 (a `uv venv` is assumed below, but any venv tool works).
 - ~40GB free disk space for models.
-- [Hugging Face CLI](https://huggingface.co/docs/huggingface_hub/guides/cli)
-  or equivalent to download model weights.
+- The [Hugging Face CLI](https://huggingface.co/docs/huggingface_hub/guides/cli)
+  to fetch model weights (`uv tool install huggingface_hub`, or
+  `pip install huggingface_hub` — gives you the `hf` command). No account or
+  token needed: every repo used here is public and ungated.
 
 ## Setup
 
@@ -124,29 +126,68 @@ mkdir -p "$LTX_MAC_ROOT"/{input,output,models/tts,models/diffusion_models,models
 
 ### Model weights
 
-Download these into `$LTX_MAC_ROOT/models/` (paths below match the script
-defaults; override with the `LTX_*` environment variables in
-`scripts/generate_lipsync_fast.py` if you place them elsewhere):
+About 35GB total, from three Hugging Face repos. None are gated, so no token or
+licence click-through is needed. Run this from `$LTX_MAC_ROOT`:
 
-| File | Goes under | Source |
-|---|---|---|
-| `ltx-2.3-22b-distilled-1.1-UD-Q4_K_M.gguf` | `models/diffusion_models/` | HF `unsloth/LTX-2.3-GGUF`, `distilled-1.1/` |
-| `ltx-2.3-22b-dev_video_vae.safetensors` | `models/vae/` | same repo, `vae/` |
-| `gemma_3_12B_it_fp4_mixed.safetensors` | `models/text_encoders/` | same repo, `text_encoders/` |
-| `ltx-2.3-22b-distilled_embeddings_connectors.safetensors` | **`models/checkpoints/`** | same repo |
-| `ltx-2.3-22b-dev_audio_vae.safetensors` | **`models/checkpoints/`** | same repo |
-| Qwen3-TTS base model + tokenizer | `models/tts/` | HF `Qwen/Qwen3-TTS-...` (see Qwen3-TTS repo for exact model IDs) |
+```bash
+cd "$LTX_MAC_ROOT"
 
-> **Important:** the connectors and audio-VAE files must live in
-> `models/checkpoints/`, *not* `text_encoders/` or `vae/`, even though their
-> names suggest otherwise. ComfyUI's `LTXAVTextEncoderLoader` and
-> `LTXVAudioVAELoader` nodes only populate their dropdown from
-> `models/checkpoints/`. Putting them in the "obvious" folder produces a
-> `value_not_in_list` error at generation time.
+# 1. The DiT, as a GGUF quantization (16.4GB - the big one)
+hf download unsloth/LTX-2.3-GGUF \
+  distilled-1.1/ltx-2.3-22b-distilled-1.1-UD-Q4_K_M.gguf \
+  --local-dir /tmp/ltxdl
+mv /tmp/ltxdl/distilled-1.1/ltx-2.3-22b-distilled-1.1-UD-Q4_K_M.gguf models/diffusion_models/
 
-If you use `hf download --local-dir`, note that it preserves the repo's
-internal subfolder layout (`distilled-1.1/`, `vae/`, etc.) - you'll need to
-move files into the flat structure above after downloading.
+# 2. Video VAE (1.5GB) -> models/vae/
+hf download unsloth/LTX-2.3-GGUF vae/ltx-2.3-22b-dev_video_vae.safetensors --local-dir /tmp/ltxdl
+mv /tmp/ltxdl/vae/ltx-2.3-22b-dev_video_vae.safetensors models/vae/
+
+# 3. Audio VAE (0.4GB) and text-encoder connectors (2.3GB) -> models/checkpoints/
+#    Note the destination: see the warning below, it is not the obvious one.
+hf download unsloth/LTX-2.3-GGUF \
+  vae/ltx-2.3-22b-dev_audio_vae.safetensors \
+  text_encoders/ltx-2.3-22b-distilled_embeddings_connectors.safetensors \
+  --local-dir /tmp/ltxdl
+mv /tmp/ltxdl/vae/ltx-2.3-22b-dev_audio_vae.safetensors models/checkpoints/
+mv /tmp/ltxdl/text_encoders/ltx-2.3-22b-distilled_embeddings_connectors.safetensors models/checkpoints/
+
+# 4. Gemma text encoder (9.5GB). Different repo - it is NOT in the unsloth one.
+hf download eraRelentless/Gemma_3_12B_it_fp4 gemma_3_12B_it_fp4_mixed.safetensors \
+  --local-dir /tmp/ltxdl
+mv /tmp/ltxdl/gemma_3_12B_it_fp4_mixed.safetensors models/text_encoders/
+
+# 5. Qwen3-TTS: base model (4.5GB) + its tokenizer (0.7GB)
+hf download Qwen/Qwen3-TTS-12Hz-1.7B-Base --local-dir models/tts/Qwen3-TTS-12Hz-1.7B-Base
+hf download Qwen/Qwen3-TTS-Tokenizer-12Hz --local-dir models/tts/Qwen3-TTS-Tokenizer-12Hz
+
+rm -rf /tmp/ltxdl
+```
+
+`hf download --local-dir` keeps the repo's own subfolder layout, which is why
+each step moves the file afterwards rather than downloading straight into place.
+
+The result should look like this — the script defaults expect these exact paths
+(override with the `LTX_*` environment variables in
+`scripts/generate_lipsync_fast.py` if you put them elsewhere):
+
+```
+models/
+├── diffusion_models/ltx-2.3-22b-distilled-1.1-UD-Q4_K_M.gguf
+├── vae/ltx-2.3-22b-dev_video_vae.safetensors
+├── text_encoders/gemma_3_12B_it_fp4_mixed.safetensors
+├── checkpoints/ltx-2.3-22b-dev_audio_vae.safetensors
+├── checkpoints/ltx-2.3-22b-distilled_embeddings_connectors.safetensors
+└── tts/
+    ├── Qwen3-TTS-12Hz-1.7B-Base/
+    └── Qwen3-TTS-Tokenizer-12Hz/
+```
+
+> **Important:** the audio VAE and the connectors go in `models/checkpoints/`,
+> *not* in `vae/` or `text_encoders/` where their names — and the folders they
+> sit in on Hugging Face — both suggest. ComfyUI's `LTXVAudioVAELoader` and
+> `LTXAVTextEncoderLoader` only populate their dropdown from
+> `models/checkpoints/`, so the obvious folder produces a `value_not_in_list`
+> error at generation time.
 
 A fine-tuned or cloned voice is optional; `generate_lipsync_fast.py` works
 out of the box with Qwen3-TTS's built-in voice-cloning mode: drop a few seconds
@@ -310,8 +351,9 @@ touch-ups, or offline/overnight batches, not bulk production.
 
 | Symptom | Cause / fix |
 |---|---|
-| `value_not_in_list` for audio VAE / text-encoder connectors | Both `LTXVAudioVAELoader` and `LTXAVTextEncoderLoader` populate their dropdown from `models/checkpoints/` only. Move those two files there (not `vae/`/`text_encoders/`). |
+| `value_not_in_list` for audio VAE / text-encoder connectors | Both `LTXVAudioVAELoader` and `LTXAVTextEncoderLoader` populate their dropdown from `models/checkpoints/` only. Move those two files there. Easy to get wrong because Hugging Face ships them under `vae/` and `text_encoders/`, which is where they look like they belong. |
 | `UnetLoaderGGUF` node not found | Missing the `custom_nodes -> ComfyUI/custom_nodes` symlink; ComfyUI's `--base-directory` looks for `custom_nodes` directly under the base dir. |
+| Can't find `gemma_3_12B_it_fp4_mixed.safetensors` in the LTX GGUF repo | It isn't there. `unsloth/LTX-2.3-GGUF` ships the DiT, the VAEs and the connectors, but not the Gemma text encoder — that one comes from `eraRelentless/Gemma_3_12B_it_fp4`. See [Model weights](#model-weights). |
 | `RuntimeError: invalid low watermark ratio 1.4` on startup | You changed `PYTORCH_MPS_HIGH_WATERMARK_RATIO` without also lowering `PYTORCH_MPS_LOW_WATERMARK_RATIO` below it. `run_comfyui_mac.sh` sets both (0.85/0.75) for this reason. |
 | `brew: command not found` / `sox not found` over SSH | Non-interactive shells don't have `/opt/homebrew/bin` on `PATH` by default. `export PATH=/opt/homebrew/bin:$PATH` before running anything. |
 | A wall of `speaker_encoder.*` weight warnings when loading a fine-tuned TTS model | Harmless - `generate_custom_voice` doesn't use the speaker encoder. |
