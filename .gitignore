@@ -19,5 +19,12 @@ share/
 *.jpg
 *.jpeg
 
+# ...except the demo clip and the two inputs it was made from, so the example
+# in README "Demo" is runnable as-is. Both inputs are freely licensed; see the
+# attribution there before swapping in your own.
+!assets/demo.mp4
+!assets/demo_portrait.png
+!assets/demo_ref.wav
+
 # OS
 .DS_Store

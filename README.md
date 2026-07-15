@@ -12,6 +12,44 @@ should work on any Apple Silicon Mac with enough RAM to hold the models
 (~20-25GB resident during generation, more if you don't close other apps);
 see [Performance](#performance) for what to expect on less memory.
 
+## Demo
+
+<video src="https://github.com/mmzz164/lip-sync-mac/raw/main/assets/demo.mp4" controls width="320"></video>
+
+If the player above doesn't load, [download the clip](assets/demo.mp4) — 8.4s,
+320x576, 359 KB. It says *"This clip was generated entirely on a MacBook. Both
+the voice and the lip motion are synthetic."*, which is literally true of it:
+nothing in the video is a recording of anyone saying those words.
+
+Generated with the defaults on an M4 Pro in ~5 minutes (298s), from the two
+files in `assets/`. Reproduce it exactly — `--seed` covers the TTS take as well
+as the video, so you should get the same clip back:
+
+```bash
+cp assets/demo_portrait.png assets/demo_ref.wav "$LTX_MAC_ROOT/input/"
+"$PY" generate_lipsync_fast.py \
+  --text "This clip was generated entirely on a MacBook. Both the voice and the lip motion are synthetic." \
+  --image demo_portrait.png \
+  --ref-audio demo_ref.wav \
+  --ref-text "Printing, then, for our purpose, may be considered as the art of making books by means of movable types." \
+  --prompt "A pilot in a white uniform speaking clearly at the camera, natural lip sync, dark studio background, medium shot" \
+  --auto-duration --seed 42 --prefix demo
+```
+
+**Demo asset credits.** The portrait is
+["Portrait Pilot" by Elliott Chau](https://stocksnap.io/photo/SW0YN0Z5T0)
+(StockSnap, CC0), cropped to 320x576. The reference voice is clip `LJ001-0009`
+of the [LJ Speech Dataset](https://keithito.com/LJ-Speech-Dataset/) (public
+domain, read by Linda Johnson), resampled to 24kHz mono; its transcript above is
+the dataset's own, which is why the voice clone has an exact reference to work
+from.
+
+> A note if you swap in your own portrait: a permissive image licence covers
+> copyright, not likeness. CC0/stock terms say nothing about whether the person
+> shown agreed to be animated saying words they never said, and much of what
+> turns up under "free portrait" is private individuals or minors. Use a face
+> you have permission to use, or a synthetic one.
+
 ## How it works
 
 ```
