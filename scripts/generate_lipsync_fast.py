@@ -221,7 +221,7 @@ def main():
     ap.add_argument("--text", required=True, help="Text to speak")
     ap.add_argument("--image", required=True, help="Character image in input/ (or an absolute path)")
     ap.add_argument("--ref-audio", default=None, help="Reference audio in input/ for voice cloning (ignored if --voice-prompt/--speaker given)")
-    ap.add_argument("--ref-text", default=None, help="Exact transcript of --ref-audio. Required with --ref-audio: a transcript that does not match the audio quietly degrades the cloned voice.")
+    ap.add_argument("--ref-text", default=None, help="Exact transcript of --ref-audio. Optional if a matching <name>.txt sits beside the audio; one of the two is required, since a transcript that does not match quietly degrades the cloned voice.")
     ap.add_argument("--voice-prompt", default=None, help="Saved voice embedding name/path (.safetensors) in models/tts/prompts/. If given, overrides --ref-audio/--ref-text.")
     ap.add_argument("--tts-model", default=None, help="Path to a fine-tuned Qwen3-TTS model directory. Defaults to the Base model.")
     ap.add_argument("--speaker", default=None, help="Speaker name for custom_voice mode (FT speaker or preset). When given, uses generate_custom_voice.")
@@ -247,6 +247,7 @@ def main():
 
     voice_prompt_items = None
     ref_audio_path = None
+    ref_text = args.ref_text
     if args.voice_design:
         if not args.instruct:
             sys.exit("--voice-design requires --instruct")
@@ -256,12 +257,14 @@ def main():
         voice_prompt_items = load_voice_prompt(args.voice_prompt)
     else:
         if not args.ref_audio:
-            sys.exit("need one of --ref-audio (+ --ref-text), --voice-prompt, --speaker, or --voice-design")
-        if not args.ref_text:
-            sys.exit("--ref-audio requires --ref-text (the exact transcript of that audio)")
+            sys.exit("need one of --ref-audio, --voice-prompt, --speaker, or --voice-design")
         ref_audio_path = args.ref_audio if os.path.isabs(args.ref_audio) else os.path.join(INPUT_DIR, args.ref_audio)
         if not os.path.exists(ref_audio_path):
             sys.exit(f"missing: {ref_audio_path}")
+        ref_text = args.ref_text or U.ref_text_for(ref_audio_path)
+        if not ref_text:
+            sys.exit(f"no transcript for {os.path.basename(ref_audio_path)}: pass --ref-text, "
+                     f"or put it in {os.path.splitext(ref_audio_path)[0] + '.txt'}")
     img_abs = args.image if os.path.isabs(args.image) else os.path.join(INPUT_DIR, args.image)
     if not os.path.exists(img_abs):
         sys.exit(f"missing: {img_abs}")
@@ -276,7 +279,7 @@ def main():
     print(f" prefix    : {prefix}")
     print("=" * 60)
 
-    tts_dur = tts_voice_clone(args.text, ref_audio_path, args.ref_text, args.language, tts_wav_path,
+    tts_dur = tts_voice_clone(args.text, ref_audio_path, ref_text, args.language, tts_wav_path,
                               voice_prompt=voice_prompt_items,
                               tts_model_path=args.tts_model,
                               speaker=args.speaker,

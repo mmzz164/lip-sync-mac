@@ -79,6 +79,21 @@ def wait_for(pid, timeout=1800, progress=False):
     raise TimeoutError(f"prompt {pid} did not finish within {timeout}s")
 
 
+def ref_text_for(ref_audio_path):
+    """Transcript sitting next to a reference clip: voice.wav -> voice.txt.
+
+    The transcript belongs to the audio, not to the invocation, so keeping the
+    two together beats retyping the sentence on every run - and retyping is
+    exactly when it drifts out of sync with the clip, which degrades the cloned
+    voice without any error. Returns None if there is no sidecar.
+    """
+    side = os.path.splitext(ref_audio_path)[0] + ".txt"
+    if os.path.exists(side):
+        with open(side, encoding="utf-8") as f:
+            return f.read().strip() or None
+    return None
+
+
 def clean_prefix(prefix):
     for f in glob.glob(os.path.join(OUTPUT_DIR, f"{prefix}_*.mp4")):
         try:

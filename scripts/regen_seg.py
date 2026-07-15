@@ -69,7 +69,7 @@ def main():
     ap.add_argument("--tts-model", default=None, help="Path to a fine-tuned Qwen3-TTS model directory. Defaults to the Base model.")
     ap.add_argument("--speaker", default=None, help="Speaker name for custom_voice mode. Omit to clone from --ref-audio instead.")
     ap.add_argument("--ref-audio", default=None, help="Reference audio in input/ for voice cloning (used when --speaker is omitted)")
-    ap.add_argument("--ref-text", default=None, help="Exact transcript of --ref-audio")
+    ap.add_argument("--ref-text", default=None, help="Exact transcript of --ref-audio. Optional if a matching <name>.txt sits beside the audio.")
     ap.add_argument("--image", required=True)
     ap.add_argument("--prompt", required=True)
     ap.add_argument("--language", default="English")
@@ -84,18 +84,23 @@ def main():
     args = ap.parse_args()
 
     ref_audio_path = None
+    ref_text = args.ref_text
     if not args.speaker:
-        if not args.ref_audio or not args.ref_text:
-            sys.exit("need either --speaker (custom_voice) or --ref-audio + --ref-text (voice clone)")
+        if not args.ref_audio:
+            sys.exit("need either --speaker (custom_voice) or --ref-audio (voice clone)")
         ref_audio_path = args.ref_audio if os.path.isabs(args.ref_audio) else os.path.join(INPUT_DIR, args.ref_audio)
         if not os.path.exists(ref_audio_path):
             sys.exit(f"missing: {ref_audio_path}")
+        ref_text = args.ref_text or U.ref_text_for(ref_audio_path)
+        if not ref_text:
+            sys.exit(f"no transcript for {os.path.basename(ref_audio_path)}: pass --ref-text, "
+                     f"or put it in {os.path.splitext(ref_audio_path)[0] + '.txt'}")
 
     tts_name = f"{args.prefix}_tts.wav"
     tts_path = os.path.join(INPUT_DIR, tts_name)
     # Same TTS entry point as the single-shot CLI, so a clip regenerated here
     # keeps the voice it was originally generated with.
-    dur = G.tts_voice_clone(args.text, ref_audio_path, args.ref_text, args.language, tts_path,
+    dur = G.tts_voice_clone(args.text, ref_audio_path, ref_text, args.language, tts_path,
                             tts_model_path=args.tts_model, speaker=args.speaker)
     nf = U.frames_for_audio(dur + args.tail_pause)
     vdur = U.video_dur_for_frames(nf)

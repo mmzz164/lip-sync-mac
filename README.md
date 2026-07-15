@@ -24,28 +24,33 @@ It says *"This clip was generated entirely on a MacBook. Both the voice and the
 lip motion are synthetic."*, which is literally true of it: nothing in the video
 is a recording of anyone saying those words.
 
-Generated with the defaults on an M4 Pro in ~5 minutes (298s), from the two
-files in `assets/`. Reproduce it exactly — `--seed` covers the TTS take as well
-as the video, so you should get the same clip back:
+Generated with the defaults on an M4 Pro in ~5 minutes (298s), from the files in
+`assets/`. Reproduce it exactly — `--seed` covers the TTS take as well as the
+video, so you should get the same clip back:
 
 ```bash
-cp assets/demo_portrait.png assets/demo_ref.wav "$LTX_MAC_ROOT/input/"
+cp assets/demo_portrait.png assets/demo_ref.wav assets/demo_ref.txt "$LTX_MAC_ROOT/input/"
 "$PY" generate_lipsync_fast.py \
   --text "This clip was generated entirely on a MacBook. Both the voice and the lip motion are synthetic." \
   --image demo_portrait.png \
   --ref-audio demo_ref.wav \
-  --ref-text "Printing, then, for our purpose, may be considered as the art of making books by means of movable types." \
   --prompt "A pilot in a white uniform speaking clearly at the camera, natural lip sync, dark studio background, medium shot" \
   --auto-duration --seed 42 --prefix demo
 ```
+
+No `--ref-text` here because `demo_ref.txt` sits next to `demo_ref.wav`: the
+transcript is a property of the reference clip, so keep the two together and
+the flag becomes unnecessary. Pass `--ref-text` only for a clip that has no
+sidecar.
 
 **Demo asset credits.** The portrait is
 ["Portrait Pilot" by Elliott Chau](https://stocksnap.io/photo/SW0YN0Z5T0)
 (StockSnap, CC0), cropped to 320x576. The reference voice is clip `LJ001-0009`
 of the [LJ Speech Dataset](https://keithito.com/LJ-Speech-Dataset/) (public
-domain, read by Linda Johnson), resampled to 24kHz mono; its transcript above is
-the dataset's own, which is why the voice clone has an exact reference to work
-from.
+domain, read by Linda Johnson), resampled to 24kHz mono. `demo_ref.txt` is that
+clip's own transcript, straight from the dataset — LJ Speech ships audio already
+paired with exact text, which is the whole reason the clone has something
+trustworthy to work from.
 
 > A note if you swap in your own portrait: a permissive image licence covers
 > copyright, not likeness. CC0/stock terms say nothing about whether the person
@@ -169,10 +174,15 @@ cd "$LTX_MAC_ROOT/scripts"
   --text "Hello, this is a test of the lip-sync pipeline." \
   --image person.png \
   --ref-audio voice_sample.wav \
-  --ref-text "<exact transcript of voice_sample.wav>" \
   --auto-duration \
   --seed 42 --prefix demo
 ```
+
+The reference clip needs its exact transcript, so that Qwen3-TTS knows what the
+sample is saying. Put it in `voice_sample.txt` beside the wav and it is picked
+up automatically; otherwise pass `--ref-text "<transcript>"`. A transcript that
+does not match the audio degrades the cloned voice with no error, which is why
+one of the two is required.
 
 The output lands at `$LTX_MAC_ROOT/output/demo_00001_.mp4`.
 
@@ -182,7 +192,7 @@ reproduces the whole clip. Omit it and Qwen3-TTS samples a different take
 what you want when comparing two settings.
 
 If you have a fine-tuned custom-voice speaker instead of a reference clip,
-use `--tts-model <path> --speaker <name>` in place of `--ref-audio`/`--ref-text`.
+use `--tts-model <path> --speaker <name>` in place of `--ref-audio`.
 
 ### Retrying a bad clip
 
@@ -197,7 +207,6 @@ result by mouth motion + end-of-clip brightness:
   --prefix demo \
   --image person.png \
   --ref-audio voice_sample.wav \
-  --ref-text "<exact transcript of voice_sample.wav>" \
   --prompt "A person speaking clearly at the camera, natural lip sync, medium shot" \
   --seeds 123,777,2024
 ```
