@@ -14,10 +14,10 @@ see [Performance](#performance) for what to expect on less memory.
 
 ## Demo
 
-https://github.com/user-attachments/assets/d87d5474-d56e-4053-b317-9a3f166811ce
+https://github.com/user-attachments/assets/c0fe4458-baff-408f-8e29-80ac802b7370
 
 Turn the sound on — lip-sync is the whole point, and no still or GIF can show
-whether the mouth actually matches the speech. The clip is committed as
+whether the mouth actually matches the speech. Same file as
 [`assets/demo.mp4`](assets/demo.mp4) (8.0s, 320x576, 276 KB).
 
 It says *"This clip was generated entirely on a MacBook. Both the voice and the
