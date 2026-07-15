@@ -14,11 +14,9 @@ see [Performance](#performance) for what to expect on less memory.
 
 ## Demo
 
-[![Input photo next to a frame from the generated clip](assets/demo_poster.png)](assets/demo.mp4)
-
-**[▶ Play the clip](assets/demo.mp4)** (8.4s, 320x576, 359 KB — GitHub shows a
-player when you open it; the raw URL is served as `application/octet-stream`,
-so an inline `<video>` tag will not play it).
+**[▶ Play the demo clip](assets/demo.mp4)** — 8.4s, 320x576, 359 KB. Watch it
+with sound: lip-sync is the whole point, and a silent frame or GIF cannot show
+whether the mouth actually matches the speech.
 
 It says *"This clip was generated entirely on a MacBook. Both the voice and the
 lip motion are synthetic."*, which is literally true of it: nothing in the video
