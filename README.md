@@ -17,14 +17,14 @@ see [Performance](#performance) for what to expect on less memory.
 https://github.com/user-attachments/assets/d87d5474-d56e-4053-b317-9a3f166811ce
 
 Turn the sound on — lip-sync is the whole point, and no still or GIF can show
-whether the mouth actually matches the speech. Same file as
-[`assets/demo.mp4`](assets/demo.mp4) (8.4s, 320x576, 283 KB).
+whether the mouth actually matches the speech. The clip is committed as
+[`assets/demo.mp4`](assets/demo.mp4) (8.0s, 320x576, 276 KB).
 
 It says *"This clip was generated entirely on a MacBook. Both the voice and the
 lip motion are synthetic."*, which is literally true of it: nothing in the video
 is a recording of anyone saying those words.
 
-Generated with the defaults on an M4 Pro in ~5 minutes (298s), from the files in
+Generated with the defaults on an M4 Pro in ~4.5 minutes (271s), from the files in
 `assets/`. Reproduce it — `--seed` covers the TTS take as well as the video, so
 the clip comes back frame for frame (verified: the video stream hashes
 identically). Your file will be a little larger, since the committed copy has

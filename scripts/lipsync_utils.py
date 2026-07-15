@@ -105,12 +105,15 @@ def clean_prefix(prefix):
 def frames_for_audio(tts_dur):
     """Smallest LTX-valid frame count (8n+1) whose duration >= the speech.
 
-    LTX requires (frames-1) % 8 == 0 and internally rounds up to that grid.
-    Snapping the requested video duration to some other grid first (e.g. the
-    nearest 0.5s) and letting LTX round up separately makes the video run
-    longer than the audio, and the model stretches the mouth motion across
-    that extra time -> progressive lip/voice desync. Matching frames to the
-    audio length directly removes that stretch.
+    LTX only emits 8n+1 frames, rounding up to get there. Snapping the video
+    duration to some other grid first (e.g. the nearest 0.5s) and letting LTX
+    round up again on top leaves the video running past the speech, and the
+    model stretches the mouth motion to fill it -> progressive lip/voice desync.
+    Sizing frames to the audio removes that stretch.
+
+    Pair this with video_dur_for_frames() to actually get the count back: LTX
+    returns ceil(requested/8)*8 + 1, so requesting this number directly would
+    round up one more latent step and add 8 frames on top.
     """
     raw = max(1.0, min(tts_dur, 30.0)) * FPS
     n = max(1, math.ceil((raw - 1) / 8))
@@ -118,7 +121,12 @@ def frames_for_audio(tts_dur):
 
 
 def video_dur_for_frames(num_frames):
-    # build_workflow computes num_frames = int(FPS*duration)+1, so invert it.
+    """Duration to hand build_workflow so that LTX returns exactly num_frames.
+
+    build_workflow asks for int(FPS*duration) and LTX returns
+    ceil(that/8)*8 + 1, so a num_frames of 8n+1 needs 8n requested, i.e. this
+    duration. Verified against the hardware for 24/25, 48/49 and 144/145.
+    """
     return (num_frames - 1) / FPS
 
 

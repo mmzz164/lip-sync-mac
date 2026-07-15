@@ -154,8 +154,12 @@ def tts_voice_clone(text, ref_audio_path, ref_text, language, out_wav,
 
 
 def build_workflow(image_name, audio_name, prompt_text, duration, seed, prefix, width, height,
-                   guide_strength=1.0, img_compression=18):
-    num_frames = int(FPS * duration) + 1
+                   guide_strength=0.94, img_compression=24):
+    # LTX returns ceil(length/8)*8 + 1 frames, so asking for 8n+1 (the shape the
+    # output takes) rounds up a whole latent step and hands back 8 extra frames:
+    # length=25 -> 33, 145 -> 153. Ask for the 8n below it instead and the count
+    # comes back exactly. Measured on an M4 Pro across 24/25, 48/49, 144/145.
+    num_frames = int(FPS * duration)
     wf = {
         "100": {"class_type": "UnetLoaderGGUF", "inputs": {"unet_name": GGUF_MODEL}},
         "101": {"class_type": "LTXAVTextEncoderLoader", "inputs": {"text_encoder": TEXT_ENCODER, "ckpt_name": CONNECTORS, "device": TE_DEVICE}},
