@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# This repo only holds the driver scripts. Everything below is generated or
+# fetched at setup time (see README.md) and should never be committed:
+ComfyUI/
+custom_nodes/
+venv/
+models/
+input/
+output/
+narration/
+share/
+*.mp4
+*.wav
+*.png
+*.jpg
+*.jpeg
+
+# OS
+.DS_Store

@@ -1,0 +1,18 @@
+# Python dependencies for the lip-sync scripts (Qwen3-TTS + helper libraries).
+#
+# ComfyUI and ComfyUI-GGUF have their own requirements.txt files that must be
+# installed separately (see README.md "Setup" for the full sequence) - this
+# file only covers what the scripts in scripts/ need directly.
+#
+# opencv-python-headless is pinned: 5.x wheels observed in testing were
+# missing cv2.CascadeClassifier (used by analyze_mouth.py / lipsync_utils.py's
+# mouth_range), so stick to the 4.x line.
+torch
+torchvision
+torchaudio
+qwen-tts==0.1.1
+transformers==4.57.3
+soundfile
+librosa
+opencv-python-headless==4.10.0.84
+sox
