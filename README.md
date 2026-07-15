@@ -149,8 +149,10 @@ internal subfolder layout (`distilled-1.1/`, `vae/`, etc.) - you'll need to
 move files into the flat structure above after downloading.
 
 A fine-tuned or cloned voice is optional; `generate_lipsync_fast.py` works
-out of the box with Qwen3-TTS's built-in voice-cloning mode (a few seconds
-of reference audio + its transcript).
+out of the box with Qwen3-TTS's built-in voice-cloning mode: drop a few seconds
+of reference audio in `input/` as `voice.wav`, with exactly what it says in
+`voice.txt` next to it. `assets/` has a usable pair if you just want to see the
+thing run.
 
 ## Usage
 
@@ -316,6 +318,7 @@ touch-ups, or offline/overnight batches, not bulk production.
 | `submit_and_wait` reports `TIMEOUT` but the clip shows up in `output/` moments later | The default wait is 1800s; a long clip on Apple Silicon can exceed it while still finishing. ComfyUI keeps working after the script gives up - check `output/` before assuming failure. |
 | `cv2.CascadeClassifier` missing / `analyze_mouth.py` crashes on import | Some `opencv-python-headless` 5.x wheels ship without Haar cascade support. Pin to 4.x (`requirements.txt` already does this). |
 | Generated face doesn't look like the reference person | See [Tuning](#tuning) - you likely pushed `--guide-strength` down or `--img-compression` up too far. Revert to defaults and change `--seed` instead. |
+| Cloned voice sounds off, but nothing errored | Check that the transcript actually matches the reference audio, word for word. Qwen3-TTS trusts it and will not complain: a stale `voice.txt`, or a `--ref-text` left over from another clip, just quietly degrades the voice. Trim the wav and the text together, or use a source that ships both (LJ Speech, Common Voice). |
 | `pkill -f "port 8188"`-style patterns kill your own shell too | `pkill -f` matches the full command line, including whatever invoked it (e.g. a wrapping `bash -c "... port 8188 ..."`). Match on something more specific, like the exact `main.py --listen 127.0.0.1 --port 8188` invocation, or check with `pgrep -fa` first. |
 
 ## License
