@@ -40,10 +40,9 @@ cp assets/demo_portrait.png assets/demo_ref.wav assets/demo_ref.txt "$LTX_MAC_RO
   --auto-duration --seed 42 --prefix demo
 ```
 
-No `--ref-text` here because `demo_ref.txt` sits next to `demo_ref.wav`: the
-transcript is a property of the reference clip, so keep the two together and
-the flag becomes unnecessary. Pass `--ref-text` only for a clip that has no
-sidecar.
+(The reference voice needs its transcript too. Here it's in `demo_ref.txt`,
+which the script picks up automatically from next to `demo_ref.wav` — see
+[Usage](#usage) for how that works and when you'd pass `--ref-text` instead.)
 
 **Demo asset credits.** The portrait is
 ["Portrait Pilot" by Elliott Chau](https://stocksnap.io/photo/SW0YN0Z5T0)
@@ -223,11 +222,17 @@ cd "$LTX_MAC_ROOT/scripts"
   --seed 42 --prefix demo
 ```
 
-The reference clip needs its exact transcript, so that Qwen3-TTS knows what the
-sample is saying. Put it in `voice_sample.txt` beside the wav and it is picked
-up automatically; otherwise pass `--ref-text "<transcript>"`. A transcript that
-does not match the audio degrades the cloned voice with no error, which is why
-one of the two is required.
+Qwen3-TTS needs to know what the reference clip is saying, so a voice clone
+takes a transcript as well as the audio. Two ways to give it one:
+
+- **Sidecar file (preferred):** put the transcript in a `.txt` next to the wav
+  with the same stem — `voice_sample.wav` → `voice_sample.txt` — and it's used
+  automatically, no flag needed. The transcript travels with the clip, so you
+  write it once instead of on every run.
+- **`--ref-text "<transcript>"`:** pass it inline, which overrides any sidecar.
+
+One of the two is required. A transcript that doesn't match the audio degrades
+the cloned voice with no error, so the script refuses to guess.
 
 The output lands at `$LTX_MAC_ROOT/output/demo_00001_.mp4`.
 
